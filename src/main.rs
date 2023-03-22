@@ -1,3 +1,6 @@
+//! Test application to try out live recorded audio in a realtime stream.
+//! The quality of the audio has been decreased for issues with the application's size, but it's not at all the limit of what the 3DS can do.
+
 #![feature(allocator_api)]
 
 use ctru::linear::LinearAllocator;
