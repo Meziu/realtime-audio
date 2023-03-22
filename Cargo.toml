@@ -1,0 +1,9 @@
+[package]
+name = "realtime-audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ctru-rs = { git = "https://github.com/rust3ds/ctru-rs" }
+symphonia = { version = "0.5.2", features = ["mp3"] }
+bytemuck = "1.13.1"
