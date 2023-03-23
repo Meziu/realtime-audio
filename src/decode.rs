@@ -1,12 +1,12 @@
 use std::fs::File;
 
+use symphonia::core::audio::RawSampleBuffer;
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error;
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use symphonia::core::audio::RawSampleBuffer;
 
 pub struct Decoder {
     track_id: u32,
