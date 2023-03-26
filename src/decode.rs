@@ -1,5 +1,7 @@
 use std::fs::File;
 
+use ctru::services::ndsp::wave::WaveInfo;
+
 use symphonia::core::audio::RawSampleBuffer;
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error;
@@ -64,9 +66,14 @@ impl Decoder {
         }
     }
 
-    pub fn decode_next(&mut self) -> RawSampleBuffer<i16> {
+    /// Return the next decoded packet
+    pub fn decode_next(&mut self) -> Option<RawSampleBuffer<i16>> {
         // Get the next packet from the format reader.
-        let packet = self.format.next_packet().unwrap();
+        let packet = match self.format.next_packet() {
+            Ok(p) => p,
+            // In theory we should handle the error depending on the type, but for the sake of this example we'll just treat every error as an "end of stream"
+            Err(_) => return None,
+        };
 
         // If the packet does not belong to the selected track, skip it.
         if packet.track_id() != self.track_id {
@@ -90,7 +97,7 @@ impl Decoder {
 
                 self.sample_count += sample_buf.len();
 
-                sample_buf
+                Some(sample_buf)
             }
             Err(Error::DecodeError(e)) => panic!("decode error: {e}"),
             Err(e) => panic!("generic error: {e}"),
@@ -99,5 +106,46 @@ impl Decoder {
 
     pub fn sample_count(&self) -> usize {
         self.sample_count
+    }
+
+    /// Decode the next packet from the [Decoder] and copy it to the double buffer.
+    ///
+    /// # Return
+    ///
+    /// Returns [Ok] if the packet has been decoded correctly or [Err] if the packet couldn't be retrieved/decoded.
+    pub fn decode_into_wave(
+        &mut self,
+        wave: &mut WaveInfo,
+        leftovers: &mut Vec<u8>,
+    ) -> Result<(), ()> {
+        let buf = wave.get_buffer_mut().unwrap();
+
+        let mut result = Vec::with_capacity(buf.len());
+        result.append(leftovers);
+
+        loop {
+            let samples = match self.decode_next() {
+                Some(s) => s,
+                None => return Err(()),
+            };
+
+            let mut bytes = samples.as_bytes().to_vec();
+
+            result.append(&mut bytes);
+
+            print!("\rDecoded {} samples", self.sample_count());
+
+            if result.len() > buf.len() {
+                buf.copy_from_slice(&result[..buf.len()]);
+
+                *leftovers = result.split_off(buf.len());
+                break;
+            } else if result.len() == buf.len() {
+                buf.copy_from_slice(&result[..buf.len()]);
+                break;
+            }
+        }
+
+        Ok(())
     }
 }

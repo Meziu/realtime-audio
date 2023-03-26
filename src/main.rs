@@ -34,12 +34,23 @@ fn main() {
     let mut decoder = Decoder::new(src);
 
     // SAMPLE RATE * TIME(s) * BYTES * CHANNELS
-    const LENGTH: usize = 44100 * 5 * 2 * 2; // We'll buffer about 5 seconds of audio at a time
+    const LENGTH: usize = 44100 * 1 * 2 * 2; // We'll buffer about 1 second of audio at a time
     let mut wave_buffer = DoubleBuffer::new(LENGTH);
 
-    decode_into_double_buffer(&mut wave_buffer, &mut decoder);
+    let mut leftovers = Vec::new();
 
-    channel.queue_wave(wave_buffer.current_mut()).unwrap();
+    // For the sake of the example we will assume we can get the double buffer filled.
+    decoder
+        .decode_into_wave(wave_buffer.current_mut(), &mut leftovers)
+        .expect("Audio file too short");
+    decoder
+        .decode_into_wave(wave_buffer.altern(), &mut leftovers)
+        .expect("Audio file too short");
+
+    // Queue the first two packets
+    channel.queue_wave(wave_buffer.altern()).unwrap();
+    channel.queue_wave(wave_buffer.altern()).unwrap();
+    wave_buffer.altern();
 
     while apt.main_loop() {
         hid.scan_input();
@@ -47,24 +58,15 @@ fn main() {
         if hid.keys_down().contains(KeyPad::KEY_START) {
             break;
         }
+
+        if wave_buffer.should_altern() {
+            match decoder.decode_into_wave(wave_buffer.current_mut(), &mut leftovers) {
+                Ok(_) => {
+                    channel.queue_wave(wave_buffer.current_mut()).unwrap();
+                    wave_buffer.altern();
+                }
+                Err(_) => println!("\x1b[10;1HAudio stream over"),
+            }
+        }
     }
-}
-
-/// Decode the next packet from the Decoder and copy it to the double buffer.
-fn decode_into_double_buffer(double_buffer: &mut DoubleBuffer, decoder: &mut Decoder) {
-    let wave = double_buffer.current_mut();
-    let buf = wave.get_buffer_mut().unwrap();
-
-    let mut result = Vec::with_capacity(buf.len());
-
-    while decoder.sample_count() < buf.len() {
-        let samples = decoder.decode_next();
-        let mut bytes = samples.as_bytes().to_vec();
-
-        result.append(&mut bytes);
-
-        print!("\rDecoded {} samples", decoder.sample_count());
-    }
-
-    buf.copy_from_slice(&result[..buf.len()]);
 }
