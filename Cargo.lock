@@ -110,7 +110,6 @@ dependencies = [
 name = "realtime-audio"
 version = "0.1.0"
 dependencies = [
- "bytemuck",
  "ctru-rs",
  "symphonia",
 ]

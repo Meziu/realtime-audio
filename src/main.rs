@@ -37,7 +37,7 @@ fn main() {
     const LENGTH: usize = 44100 * 1 * 2 * 2; // We'll buffer about 1 second of audio at a time
     let mut wave_buffer = DoubleBuffer::new(LENGTH);
 
-    let mut leftovers = Vec::new();
+    let mut leftovers: Vec<u8> = Vec::new();
 
     // For the sake of the example we will assume we can get the double buffer filled.
     decoder
