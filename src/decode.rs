@@ -1,8 +1,7 @@
+use std::cmp::Ordering;
 use std::fs::File;
 
-use ctru::services::ndsp::wave::WaveInfo;
-
-use symphonia::core::audio::RawSampleBuffer;
+use symphonia::core::audio::{Channels, RawSampleBuffer};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error;
 use symphonia::core::formats::{FormatOptions, FormatReader};
@@ -11,10 +10,14 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
 pub struct Decoder {
+    // `symphonia`-related members
     track_id: u32,
     raw_decoder: Box<dyn symphonia::core::codecs::Decoder>,
     format: Box<dyn FormatReader>,
     sample_count: usize,
+    // Custom decoding members
+    /// Leftovers (left channel, right channel)
+    leftovers: (Vec<u8>, Vec<u8>),
 }
 
 impl Decoder {
@@ -63,10 +66,11 @@ impl Decoder {
             raw_decoder,
             format,
             sample_count,
+            leftovers: (Vec::new(), Vec::new()),
         }
     }
 
-    /// Return the next decoded packet
+    /// Returns the next decoded packet (if there is one).
     pub fn decode_next(&mut self) -> Option<RawSampleBuffer<i16>> {
         // Get the next packet from the format reader.
         let packet = match self.format.next_packet() {
@@ -86,6 +90,13 @@ impl Decoder {
                 // Get the audio buffer specification.
                 let spec = *audio_buf.spec();
 
+                // Must be "stereo" audio
+                assert!(
+                    spec.channels
+                        .contains(Channels::FRONT_LEFT & Channels::FRONT_RIGHT),
+                    "decoded audio was not stereo"
+                );
+
                 // Get the capacity of the decoded buffer. Note: This is capacity, not length!
                 let duration = audio_buf.capacity() as u64;
 
@@ -93,7 +104,7 @@ impl Decoder {
                 let mut sample_buf = RawSampleBuffer::new(duration, spec);
 
                 // Copy the decoded audio buffer into the sample buffer in an interleaved format.
-                sample_buf.copy_interleaved_ref(audio_buf);
+                sample_buf.copy_planar_ref(audio_buf);
 
                 self.sample_count += sample_buf.len();
 
@@ -104,48 +115,57 @@ impl Decoder {
         }
     }
 
-    pub fn sample_count(&self) -> usize {
-        self.sample_count
-    }
-
-    /// Decode the next packet from the [Decoder] and copy it to the double buffer.
+    /// Runs [`Decoder::decode_next`] until the desired length (in bytes) is reached.
     ///
-    /// # Return
+    /// # Returns
     ///
-    /// Returns [Ok] if the packet has been decoded correctly or [Err] if the packet couldn't be retrieved/decoded.
-    pub fn decode_into_wave(
-        &mut self,
-        wave: &mut WaveInfo,
-        leftovers: &mut Vec<u8>,
-    ) -> Result<(), ()> {
-        let buf = wave.get_buffer_mut().unwrap();
+    /// Returns the decoded data split in "left" and "right" channel.
+    pub fn decode_until(&mut self, max_len: usize) -> (Vec<u8>, Vec<u8>) {
+        let mut result = (Vec::new(), Vec::new());
 
-        let mut result = Vec::with_capacity(buf.len());
-        result.append(leftovers);
+        result.0.append(&mut self.leftovers.0);
+        result.1.append(&mut self.leftovers.1);
 
         loop {
-            let samples = match self.decode_next() {
-                Some(s) => s,
-                None => return Err(()),
-            };
+            assert_eq!(result.0.len(), result.1.len());
 
-            let mut bytes = samples.as_bytes().to_vec();
+            match result.0.len().cmp(&max_len) {
+                // We have more than we can handle: leave some leftovers
+                Ordering::Greater => {
+                    self.leftovers = (result.0.split_off(max_len), result.1.split_off(max_len));
 
-            result.append(&mut bytes);
+                    return result;
+                }
+                // Just perfect: we can return
+                Ordering::Equal => {
+                    return result;
+                }
+                // We can keep on decoding
+                _ => {
+                    let samples = match self.decode_next() {
+                        Some(s) => s,
+                        // Premature EOF: we can return what we have
+                        None => {
+                            return result;
+                        }
+                    };
 
-            print!("\rDecoded {} samples", self.sample_count());
+                    let (left_channel, right_channel) =
+                        samples.as_bytes().split_at(samples.len() / 2);
 
-            if result.len() > buf.len() {
-                buf.copy_from_slice(&result[..buf.len()]);
+                    // If the lengths aren't equal it's definetly symphonia's fault
+                    assert_eq!(left_channel.len(), right_channel.len());
 
-                *leftovers = result.split_off(buf.len());
-                break;
-            } else if result.len() == buf.len() {
-                buf.copy_from_slice(&result[..buf.len()]);
-                break;
+                    result.0.append(&mut left_channel.to_vec());
+                    result.1.append(&mut right_channel.to_vec());
+
+                    print!("\rDecoded {} samples", self.sample_count());
+                }
             }
         }
+    }
 
-        Ok(())
+    pub fn sample_count(&self) -> usize {
+        self.sample_count
     }
 }

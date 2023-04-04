@@ -8,3 +8,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 ctru-rs = { git = "https://github.com/rust3ds/ctru-rs" }
 symphonia = { version = "0.5.2", features = ["mp3"] }
+bytemuck = "1.13.1"

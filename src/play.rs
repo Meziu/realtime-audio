@@ -1,11 +1,15 @@
-use ctru::linear::LinearAllocator;
-use ctru::services::ndsp::wave::WaveStatus;
-use ctru::services::ndsp::{
-    wave::WaveInfo, AudioFormat, Channel, InterpolationType, Ndsp, NdspError, OutputMode,
-};
+use std::cell::RefCell;
 
+use ctru::services::ndsp::{AudioFormat, AudioMix, InterpolationType, Ndsp, OutputMode};
+
+use crate::audio::Music;
+
+/// Audio playback handler
+///
+/// Based on [`Ndsp`], it can hold 1 music track at a time.
 pub struct Player {
-    ndsp: Ndsp,
+    ndsp: RefCell<Ndsp>,
+    music: RefCell<Option<Music>>,
 }
 
 impl Player {
@@ -13,76 +17,59 @@ impl Player {
         let mut ndsp = Ndsp::init().unwrap();
         ndsp.set_output_mode(OutputMode::Stereo);
 
-        Self { ndsp }
+        let mut player = Self {
+            ndsp: RefCell::new(ndsp),
+            music: RefCell::new(None),
+        };
+
+        player.setup_channels();
+
+        player
     }
 
-    pub fn initialize_channel(channel: &mut Channel) {
-        channel.set_interpolation(InterpolationType::Linear);
-        channel.set_sample_rate(44100.);
-        channel.set_format(AudioFormat::PCM16Stereo);
-
-        // Output at 100% on the first pair of left and right channels.
-
-        let mut mix: [f32; 12] = [0f32; 12];
-        mix[0] = 1.0;
-        mix[1] = 1.0;
-        channel.set_mix(&mix);
+    /// Loads a music track into the player for playback.
+    pub fn load_music(&mut self, music: Music) {
+        *self.music.borrow_mut() = Some(music)
     }
 
-    pub fn channel(&mut self, id: usize) -> Result<Channel, NdspError> {
-        self.ndsp.channel(id as u8)
+    /// Helper to setup channels during initialization.
+    fn setup_channels(&mut self) {
+        // Setup the first 2 channels for music playback
+        let ndsp = self.ndsp.borrow_mut();
+        let mut channel0 = ndsp.channel(0).unwrap();
+
+        channel0.set_interpolation(InterpolationType::Linear);
+        channel0.set_sample_rate(44100.);
+        channel0.set_format(AudioFormat::PCM16Mono);
+
+        let mut mix = AudioMix::zeroed();
+        mix.set_front(1., 0.);
+        channel0.set_mix(&mix);
+
+        let mut channel1 = ndsp.channel(1).unwrap();
+
+        channel1.set_interpolation(InterpolationType::Linear);
+        channel1.set_sample_rate(44100.);
+        channel1.set_format(AudioFormat::PCM16Mono);
+
+        let mut mix = AudioMix::zeroed();
+        mix.set_front(0., 1.);
+        channel1.set_mix(&mix);
     }
-}
 
-/// Audio double-buffering
-pub struct DoubleBuffer {
-    altern: bool,
-    wave1: WaveInfo,
-    wave2: WaveInfo,
-}
+    /// Audio frame handler.
+    ///
+    /// # Notes
+    ///
+    /// This function is supposed to be run in a constant loop to update the audio without annoying gaps.
+    /// That should be done in a separate thread to ensure performance indipendence.
+    pub fn play(&mut self) {
+        let ndsp = self.ndsp.borrow_mut();
+        let mut channel0 = ndsp.channel(0).unwrap();
+        let mut channel1 = ndsp.channel(1).unwrap();
 
-impl DoubleBuffer {
-    /// Creates a new [DoubleBuffer] object, capable of switching between 2 wavebuffers.
-    /// The first wavebuffer is selected by default.
-    pub fn new(len: usize) -> Self {
-        let buffer1 = unsafe { Box::new_zeroed_slice_in(len, LinearAllocator).assume_init() };
-        let buffer2 = buffer1.clone();
-
-        let wave1 = WaveInfo::new(buffer1, AudioFormat::PCM16Stereo, false);
-        let wave2 = WaveInfo::new(buffer2, AudioFormat::PCM16Stereo, false);
-
-        Self {
-            altern: false,
-            wave1,
-            wave2,
+        if let Some(music) = self.music.borrow_mut().as_mut() {
+            music.play(&mut channel0, &mut channel1);
         }
-    }
-
-    /// Returns whether the current buffer has finished playing or not.
-    pub fn should_altern(&self) -> bool {
-        matches!(self.current().get_status(), WaveStatus::Done)
-    }
-
-    /// Returns a reference to the current buffer, without alternating.
-    pub fn current(&self) -> &WaveInfo {
-        match self.altern {
-            false => &self.wave1,
-            true => &self.wave2,
-        }
-    }
-
-    /// Returns a mutable reference to the current buffer, without alternating.
-    pub fn current_mut(&mut self) -> &mut WaveInfo {
-        match self.altern {
-            false => &mut self.wave1,
-            true => &mut self.wave2,
-        }
-    }
-
-    /// Returns a reference to the wave buffer AFTER alternating.
-    pub fn altern(&mut self) -> &mut WaveInfo {
-        self.altern = !self.altern;
-
-        self.current_mut()
     }
 }
