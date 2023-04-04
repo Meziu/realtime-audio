@@ -56,7 +56,8 @@ impl Music {
     ///
     /// Returns an error if the [Music] is busy playing.
     fn write_stereo(&mut self, left_audio: &[u8], right_audio: &[u8]) -> Result<(), NdspError> {
-        assert_eq!(left_audio.len(), self.buffer_len());
+        // The audio source can't be longer than the buffer we'll write to
+        assert!(left_audio.len() <= self.buffer_len());
 
         self.write_single_channel(ChannelID::FrontLeft, left_audio)?;
         self.write_single_channel(ChannelID::FrontRight, right_audio)?;
@@ -128,7 +129,7 @@ impl Music {
         channel_id: ChannelID,
         src: &[u8],
     ) -> Result<(), NdspError> {
-        // Must be the representation of a i16 buffer
+        // The source buffer must be the representation of a i16 buffer
         assert_eq!(src.len() % 2, 0);
 
         let wave = match channel_id {

@@ -150,8 +150,14 @@ impl Decoder {
                         }
                     };
 
+                    // We subdivide the slice right in the middle of it's capacity.
+                    // Note: length and capacity are different. The "channel buffers" are split by capacity, not length.
                     let (left_channel, right_channel) =
-                        samples.as_bytes().split_at(samples.len() / 2);
+                        samples.as_bytes().split_at(samples.capacity() / 2);
+
+                    // The "total" length is the sum of the channels' length, so we'll divide by 2
+                    let left_channel = &left_channel[..samples.len() / 2];
+                    let right_channel = &right_channel[..samples.len() / 2];
 
                     // If the lengths aren't equal it's definetly symphonia's fault
                     assert_eq!(left_channel.len(), right_channel.len());
