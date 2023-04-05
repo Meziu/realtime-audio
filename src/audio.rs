@@ -42,9 +42,9 @@ impl Music {
         };
 
         // Decode into the first buffer, switch, decode into the second buffer and then switch back to the first.
-        music.decode_within();
+        music.decode_within().unwrap();
         music.altern();
-        music.decode_within();
+        music.decode_within().unwrap();
         music.altern();
 
         music
@@ -62,55 +62,7 @@ impl Music {
         Ok(())
     }
 
-    /// Alterns the internal [`DoubleBuffer`] members.
-    fn altern(&mut self) {
-        self.wave_left.altern();
-        self.wave_right.altern();
-    }
-
-    /// Decodes available data inside its [DoubleBuffer] members.
-    fn decode_within(&mut self) {
-        let (left, right) = self.decoder.decode_until(self.buffer_len());
-
-        self.write_stereo(&left, &right).unwrap();
-    }
-
-    /// Decodes data into itself (if possible) and queues itself into the specified channels.
-    pub(crate) fn play(&mut self, left_channel: &mut Channel, right_channel: &mut Channel) {
-        if self.wave_left.is_free() && self.wave_right.is_free() {
-            left_channel
-                .queue_wave(self.wave_left.current_mut())
-                .unwrap();
-            right_channel
-                .queue_wave(self.wave_right.current_mut())
-                .unwrap();
-
-            self.altern();
-
-            left_channel
-                .queue_wave(self.wave_left.current_mut())
-                .unwrap();
-            right_channel
-                .queue_wave(self.wave_right.current_mut())
-                .unwrap();
-
-            self.altern();
-        }
-
-        if self.wave_left.should_altern() && self.wave_right.should_altern() {
-            self.decode_within();
-            left_channel
-                .queue_wave(self.wave_left.current_mut())
-                .unwrap();
-            right_channel
-                .queue_wave(self.wave_right.current_mut())
-                .unwrap();
-
-            self.altern();
-        }
-    }
-
-    /// Write audio data to a single channel of the [Song].
+        /// Write audio data to a single channel of the [Song].
     ///
     /// This function will write to the "current" buffer of the two [DoubleBuffer] held.
     ///
@@ -143,6 +95,51 @@ impl Music {
         dst.copy_from_slice(&src);
 
         Ok(())
+    }
+
+    /// Alterns the internal [`DoubleBuffer`] members.
+    fn altern(&mut self) {
+        self.wave_left.altern();
+        self.wave_right.altern();
+    }
+
+    /// Decodes available data inside its [DoubleBuffer] members.
+    fn decode_within(&mut self) -> Result<(), crate::decode::DecodeError> {
+        let (left, right) = self.decoder.decode_until(self.buffer_len())?;
+
+        self.write_stereo(&left, &right).unwrap();
+
+        Ok(())
+    }
+
+    fn queue(&mut self, left_channel: &mut Channel, right_channel: &mut Channel) {
+        left_channel
+            .queue_wave(self.wave_left.current_mut())
+            .unwrap();
+        right_channel
+            .queue_wave(self.wave_right.current_mut())
+            .unwrap();
+    }
+
+    /// Decodes data into itself (if possible) and queues itself into the specified channels.
+    pub(crate) fn play(&mut self, left_channel: &mut Channel, right_channel: &mut Channel) {
+        if self.wave_left.is_free() && self.wave_right.is_free() {
+            self.queue(left_channel, right_channel);
+
+            self.altern();
+
+            self.queue(left_channel, right_channel);
+
+            self.altern();
+        }
+
+        if self.wave_left.should_altern() && self.wave_right.should_altern() {
+            if self.decode_within().is_ok() {
+                self.queue(left_channel, right_channel);
+
+                self.altern();
+            }
+        }
     }
 
     /// Returns the length of the internal buffer (in bytes).

@@ -1,13 +1,18 @@
 use std::cmp::Ordering;
 use std::fs::File;
 
-use symphonia::core::audio::{Channels, RawSampleBuffer};
+use symphonia::core::audio::{AudioBuffer, Channels, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error;
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecodeError {
+    EndOfStream,
+}
 
 pub struct Decoder {
     // `symphonia`-related members
@@ -48,8 +53,6 @@ impl Decoder {
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
             .expect("no supported audio tracks");
 
-        println!("{}", track.codec_params.sample_rate.unwrap());
-
         // Use the default options for the decoder.
         let dec_opts: DecoderOptions = Default::default();
 
@@ -73,12 +76,12 @@ impl Decoder {
     }
 
     /// Returns the next decoded packet (if there is one).
-    pub fn decode_next(&mut self) -> Option<RawSampleBuffer<i16>> {
+    pub fn decode_next(&mut self) -> Result<AudioBuffer<i16>, DecodeError> {
         // Get the next packet from the format reader.
         let packet = match self.format.next_packet() {
             Ok(p) => p,
             // In theory we should handle the error depending on the type, but for the sake of this example we'll just treat every error as an "end of stream"
-            Err(_) => return None,
+            Err(_) => return Err(DecodeError::EndOfStream),
         };
 
         // If the packet does not belong to the selected track, skip it.
@@ -99,18 +102,15 @@ impl Decoder {
                     "decoded audio was not stereo"
                 );
 
-                // Get the capacity of the decoded buffer. Note: This is capacity, not length!
-                let duration = audio_buf.capacity() as u64;
+                // Convert the original audio buffer into i16.
+                let mut audio: AudioBuffer<i16> = audio_buf.make_equivalent();
+                audio_buf.convert(&mut audio);
 
-                // Create the f32 sample buffer.
-                let mut sample_buf = RawSampleBuffer::new(duration, spec);
+                self.sample_count += audio.frames();
 
-                // Copy the decoded audio buffer into the sample buffer.
-                sample_buf.copy_planar_ref(audio_buf);
+                print!("\rDecoded {} samples", self.sample_count);
 
-                self.sample_count += sample_buf.len();
-
-                Some(sample_buf)
+                Ok(audio)
             }
             Err(Error::DecodeError(e)) => panic!("decode error: {e}"),
             Err(e) => panic!("generic error: {e}"),
@@ -122,60 +122,53 @@ impl Decoder {
     /// # Returns
     ///
     /// Returns the decoded data split in "left" and "right" channel.
-    pub fn decode_until(&mut self, max_len: usize) -> (Vec<u8>, Vec<u8>) {
+    pub fn decode_until(&mut self, max_len: usize) -> Result<(Vec<u8>, Vec<u8>), DecodeError> {
         let mut result = (Vec::new(), Vec::new());
 
         result.0.append(&mut self.leftovers.0);
         result.1.append(&mut self.leftovers.1);
 
         loop {
-            assert_eq!(result.0.len(), result.1.len());
-
             match result.0.len().cmp(&max_len) {
                 // We have more than we can handle: leave some leftovers
                 Ordering::Greater => {
                     self.leftovers = (result.0.split_off(max_len), result.1.split_off(max_len));
-
-                    return result;
+                    return Ok(result);
                 }
                 // Just perfect: we can return
                 Ordering::Equal => {
-                    return result;
+                    return Ok(result);
                 }
                 // We can keep on decoding
                 _ => {
-                    let samples = match self.decode_next() {
-                        Some(s) => s,
-                        // Premature EOF: we can return what we have
-                        None => {
-                            return result;
+                    let mut samples = match self.decode_next() {
+                        Ok(s) => s,
+                        Err(e) => {
+                            // If there's anything yet to return
+                            if result.0.len() > 0 {
+                                return Ok(result);
+                            } else {
+                                return Err(e);
+                            }
                         }
                     };
 
-                    let channel_length = samples.len() / 2;
+                    let channel_length = samples.chan(0).len();
 
                     // We subdivide the slice right in the middle of it's capacity.
                     // Note: length and capacity are different. The "channel buffers" are split by capacity, not length.
-                    let (left_channel, right_channel) =
-                        samples.as_bytes().split_at(samples.capacity() / 2);
+                    let (left_channel, right_channel) = samples.chan_pair_mut(0, 1);
 
                     // The "total" length is the sum of the channels' length, so we'll divide by 2
-                    let left_channel = &left_channel[..channel_length];
-                    let right_channel = &right_channel[..channel_length];
-
-                    // If the lengths aren't equal it's definetly symphonia's fault
-                    assert_eq!(left_channel.len(), right_channel.len());
+                    let left_channel =
+                        bytemuck::cast_slice_mut(&mut left_channel[..channel_length]);
+                    let right_channel =
+                        bytemuck::cast_slice_mut(&mut right_channel[..channel_length]);
 
                     result.0.append(&mut left_channel.to_vec());
                     result.1.append(&mut right_channel.to_vec());
-
-                    print!("\rDecoded {} samples", self.sample_count());
                 }
             }
         }
-    }
-
-    pub fn sample_count(&self) -> usize {
-        self.sample_count
     }
 }
