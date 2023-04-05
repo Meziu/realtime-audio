@@ -24,7 +24,7 @@ pub struct Music {
 
 impl Music {
     pub fn new(src: File) -> Self {
-        Self::with_capacity(src, 44100 * AudioFormat::PCM16Mono.size())
+        Self::with_capacity(src, 44100 * AudioFormat::PCM16Mono.size() * 2)
     }
 
     pub fn with_capacity(src: File, capacity: usize) -> Self {
@@ -56,9 +56,6 @@ impl Music {
     ///
     /// Returns an error if the [Music] is busy playing.
     fn write_stereo(&mut self, left_audio: &[u8], right_audio: &[u8]) -> Result<(), NdspError> {
-        // The audio source can't be longer than the buffer we'll write to
-        assert!(left_audio.len() <= self.buffer_len());
-
         self.write_single_channel(ChannelID::FrontLeft, left_audio)?;
         self.write_single_channel(ChannelID::FrontRight, right_audio)?;
 
@@ -139,9 +136,11 @@ impl Music {
 
         let dst = wave.get_buffer_mut()?;
 
-        assert_eq!(src.len(), dst.len());
+        assert!(src.len() <= dst.len());
 
-        dst.copy_from_slice(&src[..dst.len()]);
+        let dst = &mut dst[..src.len()];
+
+        dst.copy_from_slice(&src);
 
         Ok(())
     }

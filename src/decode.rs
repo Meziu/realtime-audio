@@ -48,6 +48,8 @@ impl Decoder {
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
             .expect("no supported audio tracks");
 
+        println!("{}", track.codec_params.sample_rate.unwrap());
+
         // Use the default options for the decoder.
         let dec_opts: DecoderOptions = Default::default();
 
@@ -103,7 +105,7 @@ impl Decoder {
                 // Create the f32 sample buffer.
                 let mut sample_buf = RawSampleBuffer::new(duration, spec);
 
-                // Copy the decoded audio buffer into the sample buffer in an interleaved format.
+                // Copy the decoded audio buffer into the sample buffer.
                 sample_buf.copy_planar_ref(audio_buf);
 
                 self.sample_count += sample_buf.len();
@@ -150,14 +152,16 @@ impl Decoder {
                         }
                     };
 
+                    let channel_length = samples.len() / 2;
+
                     // We subdivide the slice right in the middle of it's capacity.
                     // Note: length and capacity are different. The "channel buffers" are split by capacity, not length.
                     let (left_channel, right_channel) =
                         samples.as_bytes().split_at(samples.capacity() / 2);
 
                     // The "total" length is the sum of the channels' length, so we'll divide by 2
-                    let left_channel = &left_channel[..samples.len() / 2];
-                    let right_channel = &right_channel[..samples.len() / 2];
+                    let left_channel = &left_channel[..channel_length];
+                    let right_channel = &right_channel[..channel_length];
 
                     // If the lengths aren't equal it's definetly symphonia's fault
                     assert_eq!(left_channel.len(), right_channel.len());
