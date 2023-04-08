@@ -9,3 +9,14 @@ in a separate thread.
 
 # Known issues
 The example doesn't run in `debug` mode, so you'll need to build it via `cargo 3ds [run/build] --release`
+
+# Music Credits
+
+Song: Aero Chord & Anuka - Incomplete (Muzzy Remix) [NCS Release]
+Music provided by NoCopyrightSounds
+Free Download/Stream: http://ncs.io/IncompleteMuzzyRemix
+Watch: http://youtu.be/1dEyXpdpwWE
+
+# License
+
+This project is dual-licensed under MIT or Apache-2.0

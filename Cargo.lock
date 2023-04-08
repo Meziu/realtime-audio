@@ -35,15 +35,15 @@ checksum = "a1d3d68618a1f2c2d86e0bd2adec82e31960ca11aaeb5f353ff01746a4e08f36"
 [[package]]
 name = "ctru-rs"
 version = "0.7.1"
-source = "git+https://github.com/rust3ds/ctru-rs#474cb2e0c9d0570a9831153a424028088ffbd04a"
+source = "git+https://github.com/rust3ds/ctru-rs#9098ad14a9d408aeb91d79a67185b97be299045b"
 dependencies = [
  "bitflags",
  "cfg-if",
  "const-zero",
  "ctru-sys",
  "libc",
- "linker-fix-3ds",
  "pthread-3ds",
+ "shim-3ds",
  "toml",
  "widestring",
 ]
@@ -51,7 +51,7 @@ dependencies = [
 [[package]]
 name = "ctru-sys"
 version = "21.2.0+2.1.2-1"
-source = "git+https://github.com/rust3ds/ctru-rs#474cb2e0c9d0570a9831153a424028088ffbd04a"
+source = "git+https://github.com/rust3ds/ctru-rs#9098ad14a9d408aeb91d79a67185b97be299045b"
 dependencies = [
  "libc",
  "which",
@@ -80,18 +80,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.140"
+version = "0.2.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99227334921fae1a979cf0bfdfcc6b3e5ce376ef57e16fb6fb3ea2ed6095f80c"
-
-[[package]]
-name = "linker-fix-3ds"
-version = "0.1.0"
-source = "git+https://github.com/rust3ds/rust-linker-fix-3ds.git#09969b570236f795e3f1195b15d63d3de44cc87f"
-dependencies = [
- "ctru-sys",
- "libc",
-]
+checksum = "3304a64d199bb964be99741b7a14d26972741915b3649639149b2479bb46f4b5"
 
 [[package]]
 name = "log"
@@ -111,7 +102,7 @@ checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 [[package]]
 name = "pthread-3ds"
 version = "0.1.0"
-source = "git+https://github.com/rust3ds/pthread-3ds.git#3c10dfb6f313b9d68dfb572af70112756a770a44"
+source = "git+https://github.com/rust3ds/pthread-3ds.git#c885d8cda6d0c5b429b5db3a2408bf204fc1097e"
 dependencies = [
  "ctru-sys",
  "libc",
@@ -133,6 +124,15 @@ name = "serde"
 version = "1.0.159"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c04e8343c3daeec41f58990b9d77068df31209f2af111e059e9fe9646693065"
+
+[[package]]
+name = "shim-3ds"
+version = "0.1.0"
+source = "git+https://github.com/rust3ds/shim-3ds.git#e9ef6c778c01ec687be8adf9d64c9ca811b0e4a8"
+dependencies = [
+ "ctru-sys",
+ "libc",
+]
 
 [[package]]
 name = "spin"
