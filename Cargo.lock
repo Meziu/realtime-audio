@@ -35,7 +35,7 @@ checksum = "a1d3d68618a1f2c2d86e0bd2adec82e31960ca11aaeb5f353ff01746a4e08f36"
 [[package]]
 name = "ctru-rs"
 version = "0.7.1"
-source = "git+https://github.com/rust3ds/ctru-rs#9098ad14a9d408aeb91d79a67185b97be299045b"
+source = "git+https://github.com/rust3ds/ctru-rs#f6d16d15544d4f0cefb970801cfe03315ddace1d"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -51,7 +51,7 @@ dependencies = [
 [[package]]
 name = "ctru-sys"
 version = "21.2.0+2.1.2-1"
-source = "git+https://github.com/rust3ds/ctru-rs#9098ad14a9d408aeb91d79a67185b97be299045b"
+source = "git+https://github.com/rust3ds/ctru-rs#f6d16d15544d4f0cefb970801cfe03315ddace1d"
 dependencies = [
  "libc",
  "which",
@@ -80,9 +80,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.141"
+version = "0.2.144"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3304a64d199bb964be99741b7a14d26972741915b3649639149b2479bb46f4b5"
+checksum = "2b00cc1c228a6782d0f076e7b232802e0c5689d41bb5df366f2a6b6621cfdfe1"
 
 [[package]]
 name = "log"
@@ -121,9 +121,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.159"
+version = "1.0.163"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c04e8343c3daeec41f58990b9d77068df31209f2af111e059e9fe9646693065"
+checksum = "2113ab51b87a539ae008b5c6c02dc020ffa39afd2d83cffcb3f4eb2722cebec2"
 
 [[package]]
 name = "shim-3ds"

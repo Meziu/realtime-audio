@@ -14,7 +14,7 @@ pub struct Player {
 
 impl Player {
     pub fn new() -> Self {
-        let mut ndsp = Ndsp::init().unwrap();
+        let mut ndsp = Ndsp::new().unwrap();
         ndsp.set_output_mode(OutputMode::Stereo);
 
         let mut player = Self {

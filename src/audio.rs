@@ -62,7 +62,7 @@ impl Music {
         Ok(())
     }
 
-        /// Write audio data to a single channel of the [Song].
+    /// Write audio data to a single channel of the [Song].
     ///
     /// This function will write to the "current" buffer of the two [DoubleBuffer] held.
     ///

@@ -20,16 +20,17 @@ mod decode;
 fn main() {
     ctru::use_panic_handler();
 
-    let apt = Apt::init().unwrap();
-    let mut hid = Hid::init().unwrap();
-    let gfx = Gfx::init().unwrap();
-    let _romfs = RomFS::init().unwrap();
-    let _console = Console::init(gfx.top_screen.borrow_mut());
+    let apt = Apt::new().unwrap();
+    let mut hid = Hid::new().unwrap();
+    let gfx = Gfx::new().unwrap();
+    let _romfs = RomFS::new().unwrap();
+    let _console = Console::new(gfx.top_screen.borrow_mut());
 
     let mut player = Player::new();
 
     // Open the media source.
-    let src = File::open("romfs:/Aero Chord & Anuka - Incomplete (Muzzy Remix) [NCS Release].mp3").expect("failed to open media");
+    let src = File::open("romfs:/Aero Chord & Anuka - Incomplete (Muzzy Remix) [NCS Release].mp3")
+        .expect("failed to open media");
     let music = Music::new(src);
 
     player.load_music(music);
