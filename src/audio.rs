@@ -92,7 +92,7 @@ impl Music {
 
         let dst = &mut dst[..src.len()];
 
-        dst.copy_from_slice(&src);
+        dst.copy_from_slice(src);
 
         Ok(())
     }
@@ -133,12 +133,13 @@ impl Music {
             self.altern();
         }
 
-        if self.wave_left.should_altern() && self.wave_right.should_altern() {
-            if self.decode_within().is_ok() {
-                self.queue(left_channel, right_channel);
+        if self.wave_left.should_altern()
+            && self.wave_right.should_altern()
+            && self.decode_within().is_ok()
+        {
+            self.queue(left_channel, right_channel);
 
-                self.altern();
-            }
+            self.altern();
         }
     }
 

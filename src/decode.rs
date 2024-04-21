@@ -145,7 +145,7 @@ impl Decoder {
                         Ok(s) => s,
                         Err(e) => {
                             // If there's anything yet to return
-                            if result.0.len() > 0 {
+                            if !result.0.is_empty() {
                                 return Ok(result);
                             } else {
                                 return Err(e);

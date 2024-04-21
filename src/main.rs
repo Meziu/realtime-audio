@@ -1,21 +1,13 @@
 //! Test application to try out live recorded audio in a realtime stream.
 //! The quality of the audio has been decreased to avoid an enormous application size, but it's not at all the limit of what the 3DS can do.
 
-#![feature(allocator_api)]
-#![feature(new_uninit)]
-
 use ctru::prelude::*;
 use ctru::services::romfs::RomFS;
 
 use std::fs::File;
 
-mod audio;
-use audio::Music;
-
-mod play;
-use play::Player;
-
-mod decode;
+use realtime_audio::audio::Music;
+use realtime_audio::play::Player;
 
 fn main() {
     ctru::use_panic_handler();
