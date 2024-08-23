@@ -1,9 +1,9 @@
 use std::fs::File;
 
 use ctru::linear::LinearAllocator;
-use ctru::services::ndsp::{self, Channel, NdspError};
+use ctru::services::ndsp::{self, Channel, Error};
 
-use ndsp::wave::{Wave, WaveStatus};
+use ndsp::wave::{Status, Wave};
 use ndsp::AudioFormat;
 
 use crate::decode::Decoder;
@@ -55,7 +55,7 @@ impl Music {
     /// # Errors
     ///
     /// Returns an error if the [Music] is busy playing.
-    fn write_stereo(&mut self, left_audio: &[u8], right_audio: &[u8]) -> Result<(), NdspError> {
+    fn write_stereo(&mut self, left_audio: &[u8], right_audio: &[u8]) -> Result<(), Error> {
         self.write_single_channel(ChannelID::FrontLeft, left_audio)?;
         self.write_single_channel(ChannelID::FrontRight, right_audio)?;
 
@@ -73,11 +73,7 @@ impl Music {
     /// # Errors
     ///
     /// Returns an error if the [`Song`] is busy playing.
-    pub fn write_single_channel(
-        &mut self,
-        channel_id: ChannelID,
-        src: &[u8],
-    ) -> Result<(), NdspError> {
+    pub fn write_single_channel(&mut self, channel_id: ChannelID, src: &[u8]) -> Result<(), Error> {
         // The source buffer must be the representation of a i16 buffer
         assert_eq!(src.len() % 2, 0);
 
@@ -152,8 +148,8 @@ impl Music {
 /// Audio double-buffering
 pub struct DoubleBuffer {
     altern: bool,
-    wave1: Wave,
-    wave2: Wave,
+    wave1: Wave<Box<[u8], LinearAllocator>>,
+    wave2: Wave<Box<[u8], LinearAllocator>>,
 }
 
 impl DoubleBuffer {
@@ -175,16 +171,16 @@ impl DoubleBuffer {
 
     /// Returns whether the current buffer has finished playing or not.
     pub fn should_altern(&self) -> bool {
-        matches!(self.current().status(), WaveStatus::Done)
+        matches!(self.current().status(), Status::Done)
     }
 
     /// Returns whether the current buffer is free to use.
     pub fn is_free(&self) -> bool {
-        matches!(self.current().status(), WaveStatus::Free)
+        matches!(self.current().status(), Status::Free)
     }
 
     /// Returns a reference to the current buffer, without alternating.
-    pub fn current(&self) -> &Wave {
+    pub fn current(&self) -> &Wave<Box<[u8], LinearAllocator>> {
         match self.altern {
             false => &self.wave1,
             true => &self.wave2,
@@ -192,7 +188,7 @@ impl DoubleBuffer {
     }
 
     /// Returns a mutable reference to the current buffer, without alternating.
-    pub fn current_mut(&mut self) -> &mut Wave {
+    pub fn current_mut(&mut self) -> &mut Wave<Box<[u8], LinearAllocator>> {
         match self.altern {
             false => &mut self.wave1,
             true => &mut self.wave2,
@@ -200,7 +196,7 @@ impl DoubleBuffer {
     }
 
     /// Returns a reference to the wave buffer AFTER alternating.
-    pub fn altern(&mut self) -> &mut Wave {
+    pub fn altern(&mut self) -> &mut Wave<Box<[u8], LinearAllocator>> {
         self.altern = !self.altern;
 
         self.current_mut()

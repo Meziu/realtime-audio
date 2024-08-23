@@ -10,11 +10,13 @@ use realtime_audio::audio::Music;
 use realtime_audio::play::Player;
 
 fn main() {
-    ctru::use_panic_handler();
-
     let apt = Apt::new().unwrap();
     let mut hid = Hid::new().unwrap();
     let gfx = Gfx::new().unwrap();
+
+    // Use the user-friendly panic hook.
+    ctru::applets::error::set_panic_hook(true);
+
     let _romfs = RomFS::new().unwrap();
     let _console = Console::new(gfx.top_screen.borrow_mut());
 

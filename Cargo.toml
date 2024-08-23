@@ -1,11 +1,11 @@
 [package]
 name = "realtime-audio"
-authors = [ "Andrea Ciliberti <meziu210@icloud.com>" ]
+authors = ["Andrea Ciliberti <meziu210@icloud.com>"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 ctru-rs = { git = "https://github.com/rust3ds/ctru-rs" }
-symphonia = { version = "0.5.2", features = ["mp3"] }
-bytemuck = "1.13.1"
+symphonia = { version = "0.5.4", features = ["mp3"] }
+bytemuck = "1.17"
